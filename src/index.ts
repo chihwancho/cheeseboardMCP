@@ -135,15 +135,9 @@ function buildServer() {
 
 if (PORT) {
   // HTTP transport — for Claude.ai web
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // stateless
-  })
-
-  const server = buildServer()
-  await server.connect(transport)
-
+  // Stateless pattern: create a new transport per request
   const httpServer = createServer(async (req, res) => {
-    // CORS headers — required for Claude.ai to connect
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE')
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Session-Id')
@@ -160,8 +154,55 @@ if (PORT) {
       return
     }
 
+    // OAuth dynamic client registration — required by Claude.ai
+    if (req.url === '/register' && req.method === 'POST') {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => {
+        const clientInfo = {
+          client_id: 'recipe-mcp-client',
+          client_secret: 'not-used',
+          redirect_uris: [],
+          grant_types: ['authorization_code'],
+          token_endpoint_auth_method: 'none',
+        }
+        res.writeHead(201, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify(clientInfo))
+      })
+      return
+    }
+
+    // OAuth authorization server metadata
+    if (req.url === '/.well-known/oauth-authorization-server') {
+      const metadata = {
+        issuer: `https://${req.headers.host}`,
+        authorization_endpoint: `https://${req.headers.host}/authorize`,
+        token_endpoint: `https://${req.headers.host}/token`,
+        registration_endpoint: `https://${req.headers.host}/register`,
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code'],
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify(metadata))
+      return
+    }
+
     if (req.url === '/mcp' || req.url?.startsWith('/mcp?')) {
-      await transport.handleRequest(req, res)
+      try {
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined, // stateless
+        })
+        const server = buildServer()
+        await server.connect(transport)
+        await transport.handleRequest(req, res)
+        res.on('close', () => server.close())
+      } catch (err) {
+        console.error('MCP request error:', err)
+        if (!res.headersSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Internal server error' }))
+        }
+      }
       return
     }
 
@@ -170,7 +211,7 @@ if (PORT) {
   })
 
   httpServer.listen(PORT, () => {
-    console.error(`Recipe MCP server running on port ${PORT}`)
+    console.log(`Recipe MCP server running on port ${PORT}`)
   })
 } else {
   // Stdio transport — for Claude Desktop
