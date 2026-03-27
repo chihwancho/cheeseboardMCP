@@ -143,7 +143,30 @@ if (PORT) {
   await server.connect(transport)
 
   const httpServer = createServer(async (req, res) => {
-    await transport.handleRequest(req, res)
+    // CORS headers — required for Claude.ai to connect
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Session-Id')
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204)
+      res.end()
+      return
+    }
+
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ status: 'ok' }))
+      return
+    }
+
+    if (req.url === '/mcp' || req.url?.startsWith('/mcp?')) {
+      await transport.handleRequest(req, res)
+      return
+    }
+
+    res.writeHead(404)
+    res.end('Not found')
   })
 
   httpServer.listen(PORT, () => {
@@ -156,4 +179,3 @@ if (PORT) {
   await server.connect(transport)
   console.error('Recipe MCP server running via stdio')
 }
-
