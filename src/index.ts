@@ -126,6 +126,76 @@ function buildServer() {
     }
   )
 
+  server.tool(
+    'create_meal_plan',
+    'Generate a meal plan for a given number of days. Searches your recipe library and assigns recipes to breakfast, lunch, dinner, and snack slots. If an overlapping active plan exists you will be warned and asked to confirm before replacing it.',
+    {
+      days: z.number().min(1).max(14).optional().default(7).describe('Number of days to plan for'),
+      name: z.string().optional().describe('Name for the meal plan e.g. "Week of March 25"'),
+      slots: z.array(z.enum(['breakfast', 'lunch', 'dinner', 'snack'])).optional().default(['breakfast', 'lunch', 'dinner']).describe('Meal slots to fill each day'),
+      force: z.boolean().optional().default(false).describe('Set to true to replace overlapping active plans without warning'),
+      constraints: z.object({
+        dietaryTags: z.array(z.string()).optional().describe('Required dietary tags e.g. ["high_protein", "vegetarian"]'),
+        excludeIngredients: z.array(z.string()).optional().describe('Ingredients to avoid e.g. ["nuts", "shellfish"]'),
+        maxCaloriesPerDay: z.number().optional().describe('Maximum calories per day'),
+        minRating: z.number().min(1).max(5).optional().describe('Only include recipes rated this or higher'),
+        excludeRecentDays: z.number().optional().default(14).describe('Exclude recipes used in the last N days'),
+      }).optional().describe('Constraints for the meal plan'),
+    },
+    async ({ days, name, slots, force, constraints }) => {
+      const result = await apiRequest('POST', '/plans', {
+        days,
+        name,
+        slots,
+        force,
+        constraints,
+      })
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
+  server.tool(
+    'list_meal_plans',
+    'List all active meal plans with their date ranges. Use this to find a specific plan by date — e.g. "this week" or "next 3 days" — before generating a shopping list or viewing plan details.',
+    {},
+    async () => {
+      const result = await apiRequest('GET', '/plans')
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
+  server.tool(
+    'delete_meal_plan',
+    'Soft delete a meal plan. The plan is marked as deleted and deactivated but kept for history.',
+    {
+      mealPlanId: z.string().uuid().describe('The meal plan ID to delete'),
+    },
+    async ({ mealPlanId }) => {
+      const result = await apiRequest('DELETE', `/plans/${mealPlanId}`)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
+  server.tool(
+    'generate_shopping_list',
+    'Generate a categorized shopping list from a meal plan. Groups ingredients by category (produce, dairy, meat etc.) and shows which recipes each ingredient is used in.',
+    {
+      mealPlanId: z.string().uuid().describe('The meal plan ID to generate a shopping list for'),
+    },
+    async ({ mealPlanId }) => {
+      const result = await apiRequest('POST', `/plans/${mealPlanId}/shopping-list`)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
   return server
 }
 
