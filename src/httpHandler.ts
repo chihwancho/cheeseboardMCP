@@ -256,6 +256,44 @@ export async function handleHttpRequest(req: IncomingMessage, res: ServerRespons
     return
   }
 
+  // OAuth authorize — single-user personal server, so there's no real login
+  // screen: immediately redirect back with a fixed code.
+  if (req.url?.startsWith('/authorize')) {
+    const url = new URL(req.url, `https://${req.headers.host}`)
+    const redirectUri = url.searchParams.get('redirect_uri')
+    const state = url.searchParams.get('state')
+
+    if (!redirectUri) {
+      res.writeHead(400, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: 'invalid_request', error_description: 'missing redirect_uri' }))
+      return
+    }
+
+    const redirect = new URL(redirectUri)
+    redirect.searchParams.set('code', 'recipe-mcp-auth-code')
+    if (state) redirect.searchParams.set('state', state)
+    res.writeHead(302, { Location: redirect.toString() })
+    res.end()
+    return
+  }
+
+  // OAuth token exchange — always issues the same fixed token. There's no
+  // per-user identity here; the real access control is the API_KEY the MCP
+  // uses when calling the recipe API.
+  if (req.url === '/token' && req.method === 'POST') {
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({
+        access_token: 'recipe-mcp-access-token',
+        token_type: 'Bearer',
+        expires_in: 31536000,
+      }))
+    })
+    return
+  }
+
   if (req.url === '/mcp' || req.url?.startsWith('/mcp?')) {
     try {
       const transport = new StreamableHTTPServerTransport({
