@@ -4,9 +4,9 @@
     "private": true,
     "type": "module",
     "scripts": {
-      "dev": "tsx src/index.ts",
+      "dev": "tsx src/local.ts",
       "build": "tsc",
-      "start": "node dist/index.js"
+      "start": "node dist/local.js"
     },
     "dependencies": {
       "@modelcontextprotocol/sdk": "^1.12.0",
