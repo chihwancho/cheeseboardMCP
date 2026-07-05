@@ -194,6 +194,20 @@ export function buildServer() {
     }
   )
 
+  server.tool(
+    'get_day_plan',
+    'Get the recipes scheduled for a specific day, along with a shopping list for just that day\'s ingredients.',
+    {
+      date: z.string().describe('The date in YYYY-MM-DD format, e.g. "2026-07-06"'),
+    },
+    async ({ date }) => {
+      const result = await apiRequest('GET', `/plans/day/${date}`)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
   return server
 }
 
