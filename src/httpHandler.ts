@@ -263,7 +263,10 @@ export async function handleHttpRequest(req: IncomingMessage, res: ServerRespons
       })
       const server = buildServer()
       await server.connect(transport)
-      await transport.handleRequest(req, res)
+      // Pass through any pre-parsed body (e.g. Vercel's /api helper already
+      // consumes the stream and populates req.body) so the transport doesn't
+      // try to read an already-drained stream.
+      await transport.handleRequest(req, res, (req as IncomingMessage & { body?: unknown }).body)
       res.on('close', () => server.close())
     } catch (err) {
       console.error('MCP request error:', err)
