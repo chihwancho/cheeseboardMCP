@@ -208,6 +208,21 @@ export function buildServer() {
     }
   )
 
+  server.tool(
+    'get_random_recipe',
+    'Get a random recipe, optionally filtered by dietary tag, along with a shopping list for it.',
+    {
+      tag: z.string().optional().describe('Optional dietary tag to filter by, e.g. "vegan", "high_protein", "gluten_free"'),
+    },
+    async ({ tag }) => {
+      const path = tag ? `/recipes/random?tag=${encodeURIComponent(tag)}` : '/recipes/random'
+      const result = await apiRequest('GET', path)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
   return server
 }
 
