@@ -125,6 +125,34 @@ export function buildServer() {
   )
 
   server.tool(
+    'get_recipe',
+    'Fetch full details for a single recipe by id.',
+    {
+      id: z.string().uuid().describe('The recipe ID to fetch'),
+    },
+    async ({ id }) => {
+      const result = await apiRequest('GET', `/recipes/${id}`)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
+  server.tool(
+    'delete_recipe',
+    'Permanently delete a recipe. This is a hard delete, not reversible, and also removes it from any meal plans it was scheduled in — confirm with the user before calling this.',
+    {
+      id: z.string().uuid().describe('The recipe ID to delete'),
+    },
+    async ({ id }) => {
+      const result = await apiRequest('DELETE', `/recipes/${id}`)
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
+  server.tool(
     'create_meal_plan',
     'Generate a meal plan for a given number of days. Searches your recipe library and assigns recipes to breakfast, lunch, dinner, and snack slots. If an overlapping active plan exists you will be warned and asked to confirm before replacing it.',
     {
