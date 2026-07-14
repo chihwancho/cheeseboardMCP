@@ -94,6 +94,21 @@ export function buildServer() {
   )
 
   server.tool(
+    'find_recipes_by_ingredients',
+    'Find recipes from the library that best utilize a list of ingredients you have on hand, ranked by actual ingredient coverage rather than thematic similarity. Reports which on-hand ingredients each recipe uses and what else you would need to buy.',
+    {
+      ingredients: z.array(z.string()).min(1).describe('Ingredients you have on hand, e.g. ["chicken breast", "broccoli", "garlic", "soy sauce"]'),
+      limit: z.number().min(1).max(20).optional().default(5).describe('Max number of recipes to return'),
+    },
+    async ({ ingredients, limit }) => {
+      const result = await apiRequest('POST', '/recipes/match-ingredients', { ingredients, limit })
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      }
+    }
+  )
+
+  server.tool(
     'list_recipes',
     'List all recipes in the library with basic details.',
     {},
