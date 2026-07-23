@@ -300,11 +300,24 @@ export async function handleHttpRequest(req: IncomingMessage, res: ServerRespons
     let body = ''
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
+      // Must echo back the redirect_uris the client actually requested —
+      // the client needs this confirmed before it can proceed to /authorize.
+      let redirectUris: string[] = []
+      try {
+        const parsed = JSON.parse(body)
+        if (Array.isArray(parsed.redirect_uris)) {
+          redirectUris = parsed.redirect_uris
+        }
+      } catch {
+        // malformed body — fall back to no redirect_uris
+      }
+
       const clientInfo = {
         client_id: 'recipe-mcp-client',
-        client_secret: 'not-used',
-        redirect_uris: [],
+        client_id_issued_at: Math.floor(Date.now() / 1000),
+        redirect_uris: redirectUris,
         grant_types: ['authorization_code'],
+        response_types: ['code'],
         token_endpoint_auth_method: 'none',
       }
       res.writeHead(201, { 'Content-Type': 'application/json' })
