@@ -313,6 +313,19 @@ export async function handleHttpRequest(req: IncomingMessage, res: ServerRespons
     return
   }
 
+  // RFC 9728 Protected Resource Metadata — current MCP clients (including
+  // Claude.ai) probe this before attempting the OAuth flow at all; without
+  // it they refuse to connect even though /mcp itself works fine.
+  if (req.url === '/.well-known/oauth-protected-resource') {
+    const metadata = {
+      resource: `https://${req.headers.host}/mcp`,
+      authorization_servers: [`https://${req.headers.host}`],
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(metadata))
+    return
+  }
+
   // OAuth authorization server metadata
   if (req.url === '/.well-known/oauth-authorization-server') {
     const metadata = {
